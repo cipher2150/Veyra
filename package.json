@@ -1,0 +1,30 @@
+{
+  "name": "planoma",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test/e2e.test.js && node test/api.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cipher2150/Planoma.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cipher2150/Planoma/issues"
+  },
+  "homepage": "https://github.com/cipher2150/Planoma#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

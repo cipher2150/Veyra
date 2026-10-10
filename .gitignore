@@ -1,0 +1,14 @@
+node_modules/
+split_ledger.db-shm
+split_ledger.db-wal
+
+.env 
+.env.*
+
+dist/
+build/
+out/
+logs/
+.DS_Store
+.vscode/
+*.db

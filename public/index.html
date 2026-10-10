@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SplitLedger — Accurate Double-Entry Shared Expense Tracker</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- AUTH VIEW -->
+  <div id="auth-container" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="brand-header">
+        <div class="logo-mark">SL</div>
+        <div>
+          <h1>SplitLedger</h1>
+          <p class="subtitle">Fair shared expenses &amp; immutable double-entry ledger</p>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="tab-login-btn" class="auth-tab active" onclick="switchAuthTab('login')">Log In</button>
+        <button id="tab-register-btn" class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" required placeholder="name@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-submit-btn">Sign In</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="reg-name">Full Name</label>
+          <input type="text" id="reg-name" required placeholder="e.g. Alex Sharma">
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Email Address</label>
+          <input type="email" id="reg-email" required placeholder="name@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Password (min 6 chars)</label>
+          <input type="password" id="reg-password" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="register-submit-btn">Create Account</button>
+      </form>
+
+      <div id="auth-error" class="alert alert-danger hidden"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP VIEW -->
+  <div id="app-container" class="app-layout hidden">
+    <!-- TOP HEADER -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-mark sm">SL</div>
+        <div class="header-brand">
+          <span class="brand-title">SplitLedger</span>
+          <span class="badge-audit">Zero-Loss Ledger</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="user-pill">
+          <div class="avatar" id="user-avatar">U</div>
+          <div class="user-meta">
+            <span class="user-name" id="user-display-name">User</span>
+            <span class="user-net-tag" id="user-global-balance">Net: ₹0.00</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="handleLogout()" title="Log out">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- BODY CONTAINER -->
+    <div class="app-body">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-header">
+            <h3>Navigation</h3>
+          </div>
+          <button class="nav-item active" id="nav-global-btn" onclick="selectGroup(null)">
+            <span class="icon">🌐</span>
+            <span>All Groups &amp; Overview</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-header">
+            <h3>Your Groups</h3>
+            <button class="btn btn-secondary btn-xs" onclick="openModal('create-group-modal')">+ New</button>
+          </div>
+          <div id="groups-list" class="groups-list">
+            <div class="empty-state-sm">No groups yet</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT AREA -->
+      <main class="main-content">
+        <!-- GLOBAL VIEW -->
+        <section id="global-view" class="view-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Consolidated Overview</h2>
+              <p class="text-muted">Total balance and simplified debt settlements across all your groups.</p>
+            </div>
+            <div class="actions-row">
+              <button class="btn btn-secondary" onclick="exportCsv(null)">Export All CSV</button>
+              <button class="btn btn-primary" onclick="openModal('create-group-modal')">+ Create Group</button>
+            </div>
+          </div>
+
+          <!-- Summary Metric Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Overall Net Balance</span>
+              <span class="metric-value" id="global-net-val">₹0.00</span>
+              <span class="metric-sub" id="global-net-sub">Settled up</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Active Groups</span>
+              <span class="metric-value" id="global-groups-count">0</span>
+              <span class="metric-sub">Joined &amp; managed</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Ledger Invariant</span>
+              <span class="metric-value text-success">Balanced</span>
+              <span class="metric-sub">Double-entry verified (0 paise loss)</span>
+            </div>
+          </div>
+
+          <!-- Simplified Global Settlements -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <div>
+                <h3>Cross-Group Debt Simplification</h3>
+                <p class="text-muted text-sm">Min-cash-flow algorithm reducing payments needed to settle everywhere.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="global-simplified-list" class="simplified-list">
+                <div class="empty-state">No outstanding settlements across your groups! 🎉</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- All Transactions History -->
+          <div class="card mt-4">
+            <div class="card-header flex-between">
+              <div>
+                <h3>Global Transaction History</h3>
+                <p class="text-muted text-sm">Filterable, immutable audit ledger.</p>
+              </div>
+              <div class="filters-row">
+                <input type="text" id="global-search-input" class="form-input form-input-sm" placeholder="Search description..." oninput="debounceSearch()">
+                <select id="global-type-filter" class="form-select form-select-sm" onchange="loadGlobalTransactions()">
+                  <option value="">All Types</option>
+                  <option value="EXPENSE">Expenses</option>
+                  <option value="SETTLEMENT">Settlements</option>
+                  <option value="REVERSAL">Reversals</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Group</th>
+                      <th>Description</th>
+                      <th>Type</th>
+                      <th>Total</th>
+                      <th>Your Net</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="global-tx-tbody">
+                    <tr><td colspan="8" class="text-center text-muted py-4">Loading transactions...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- Pagination -->
+              <div class="pagination-bar" id="global-pagination-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- GROUP DETAIL VIEW -->
+        <section id="group-view" class="view-panel hidden">
+          <div class="panel-header">
+            <div>
+              <div class="flex-align-gap">
+                <h2 id="group-title">Group Name</h2>
+                <span class="group-type-badge" id="group-type-badge">roommates</span>
+              </div>
+              <p class="text-muted" id="group-meta-info">Created by Alex • 3 members</p>
+            </div>
+            <div class="actions-row">
+              <button class="btn btn-secondary btn-sm" onclick="exportCsv(currentGroupId)">Export CSV</button>
+              <button class="btn btn-secondary btn-sm" onclick="openAddMemberModal()">+ Add Member</button>
+              <button class="btn btn-outline-primary btn-sm" onclick="openRecordSettlementModal()">Settle Up</button>
+              <button class="btn btn-primary btn-sm" onclick="openRecordExpenseModal()">+ Add Expense</button>
+            </div>
+          </div>
+
+          <!-- Group Quick Metrics -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Your Group Balance</span>
+              <span class="metric-value" id="grp-your-balance">₹0.00</span>
+              <span class="metric-sub" id="grp-your-sub">You are settled up</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Members</span>
+              <span class="metric-value" id="grp-members-count">0</span>
+              <span class="metric-sub">Sharing expenses</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Double-Entry Status</span>
+              <span class="metric-value text-success">Accurate</span>
+              <span class="metric-sub">Paise-level precision</span>
+            </div>
+          </div>
+
+          <!-- Group Tabs Navigation -->
+          <div class="tab-nav mt-4">
+            <button class="tab-btn active" id="tab-btn-expenses" onclick="switchGroupTab('expenses')">Expenses &amp; Transactions</button>
+            <button class="tab-btn" id="tab-btn-balances" onclick="switchGroupTab('balances')">Balances &amp; Who Owes Whom</button>
+            <button class="tab-btn" id="tab-btn-activity" onclick="switchGroupTab('activity')">Activity Log</button>
+          </div>
+
+          <!-- TAB 1: Expenses & History -->
+          <div id="group-tab-expenses" class="tab-content active">
+            <div class="card mt-3">
+              <div class="card-header flex-between">
+                <div>
+                  <h3>Transactions History</h3>
+                  <p class="text-muted text-sm">Full immutable record of expenses and settlements.</p>
+                </div>
+                <div class="filters-row">
+                  <input type="text" id="grp-search-input" class="form-input form-input-sm" placeholder="Search..." oninput="debounceGroupSearch()">
+                  <select id="grp-type-filter" class="form-select form-select-sm" onchange="loadGroupTransactions()">
+                    <option value="">All Types</option>
+                    <option value="EXPENSE">Expenses</option>
+                    <option value="SETTLEMENT">Settlements</option>
+                    <option value="REVERSAL">Reversals</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Type / Split</th>
+                        <th>Total</th>
+                        <th>Your Net Impact</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="grp-tx-tbody">
+                      <tr><td colspan="7" class="text-center text-muted py-4">No transactions found.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="pagination-bar" id="grp-pagination-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: Balances & Who Owes Whom -->
+          <div id="group-tab-balances" class="tab-content hidden">
+            <!-- Debt Simplification Card -->
+            <div class="card mt-3">
+              <div class="card-header flex-between">
+                <div>
+                  <h3>Simplified Debts (Min-Cash-Flow)</h3>
+                  <p class="text-muted text-sm">Calculated mathematically to clear all group balances with the fewest payments.</p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="openRecordSettlementModal()">+ Record Settlement</button>
+              </div>
+              <div class="card-body">
+                <div id="grp-simplified-list" class="simplified-list">
+                  <div class="empty-state">All debts settled! No payments needed.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group Member Net Balances -->
+            <div class="card mt-4">
+              <div class="card-header">
+                <h3>Member Net Balances</h3>
+                <p class="text-muted text-sm">Individual ledger positions (positive = owed money, negative = owes money).</p>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Member</th>
+                        <th>Email</th>
+                        <th>Net Balance</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="grp-members-balance-tbody">
+                      <tr><td colspan="4" class="text-center text-muted py-4">Loading...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Direct Pairwise Breakdown -->
+            <div class="card mt-4">
+              <div class="card-header">
+                <h3>Direct Pairwise Debts</h3>
+                <p class="text-muted text-sm">Unsimplified who-owes-whom based on direct shared expense items.</p>
+              </div>
+              <div class="card-body">
+                <div id="grp-direct-list" class="simplified-list">
+                  <div class="empty-state">No direct pairwise debts.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: Activity Log -->
+          <div id="group-tab-activity" class="tab-content hidden">
+            <div class="card mt-3">
+              <div class="card-header">
+                <h3>Group Activity Audit Stream</h3>
+                <p class="text-muted text-sm">Chronological event stream of all changes and payments.</p>
+              </div>
+              <div class="card-body">
+                <div id="grp-activity-timeline" class="timeline">
+                  <div class="empty-state">No activity logs recorded yet.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- Modal: Create Group -->
+  <div id="create-group-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create New Group</h3>
+        <button class="modal-close" onclick="closeModal('create-group-modal')">&times;</button>
+      </div>
+      <form onsubmit="handleCreateGroup(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="new-group-name">Group Name</label>
+            <input type="text" id="new-group-name" required placeholder="e.g. Goa Trip, Flat 402, Office Lunch">
+          </div>
+          <div class="form-group">
+            <label for="new-group-type">Group Type</label>
+            <select id="new-group-type" class="form-select">
+              <option value="roommates">Roommates</option>
+              <option value="trip">Trip Mates</option>
+              <option value="colleagues">Colleagues</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('create-group-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Member -->
+  <div id="add-member-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Add Group Member</h3>
+        <button class="modal-close" onclick="closeModal('add-member-modal')">&times;</button>
+      </div>
+      <form onsubmit="handleAddMember(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="member-email-input">User Email</label>
+            <input type="email" id="member-email-input" required placeholder="colleague@example.com">
+            <small class="text-muted">User must be registered with SplitLedger.</small>
+          </div>
+          <div id="add-member-error" class="alert alert-danger hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('add-member-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add to Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Record / Edit Expense -->
+  <div id="expense-modal" class="modal-backdrop hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3 id="expense-modal-title">Record Expense</h3>
+        <button class="modal-close" onclick="closeModal('expense-modal')">&times;</button>
+      </div>
+      <form onsubmit="handleSaveExpense(event)">
+        <input type="hidden" id="expense-edit-id" value="">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="exp-description">Description</label>
+              <input type="text" id="exp-description" required placeholder="e.g. WiFi Bill, Groceries, Dinner">
+            </div>
+            <div class="form-group flex-1">
+              <label for="exp-amount">Total Amount (₹)</label>
+              <input type="number" id="exp-amount" step="0.01" min="0.01" required placeholder="0.00" oninput="recomputeSplitInputs()">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="exp-payer">Paid by</label>
+              <select id="exp-payer" class="form-select" required></select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="exp-split-type">Split Method</label>
+              <select id="exp-split-type" class="form-select" onchange="onSplitTypeChange()">
+                <option value="EQUAL">Equally</option>
+                <option value="EXACT">Exact Amounts</option>
+                <option value="PERCENTAGE">By Percentages (%)</option>
+                <option value="SHARES">By Shares</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Participants Split Container -->
+          <div class="split-section">
+            <div class="split-section-header">
+              <span class="font-medium">Participants &amp; Shares</span>
+              <span id="split-summary-badge" class="badge-neutral">Sum: ₹0.00</span>
+            </div>
+            <div id="split-participants-list" class="split-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <div id="expense-error" class="alert alert-danger hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('expense-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-expense-btn">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Record Settlement (with Idempotency) -->
+  <div id="settlement-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Record Settlement Payment</h3>
+        <button class="modal-close" onclick="closeModal('settlement-modal')">&times;</button>
+      </div>
+      <form onsubmit="handleSaveSettlement(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="settle-from-user">Payer (Who pays)</label>
+            <select id="settle-from-user" class="form-select" required></select>
+          </div>
+          <div class="form-group">
+            <label for="settle-to-user">Payee (Who receives)</label>
+            <select id="settle-to-user" class="form-select" required></select>
+          </div>
+          <div class="form-group">
+            <label for="settle-amount">Amount (₹)</label>
+            <input type="number" id="settle-amount" step="0.01" min="0.01" required placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label for="settle-notes">Notes / Reference</label>
+            <input type="text" id="settle-notes" placeholder="UPI / Bank transfer / Cash">
+          </div>
+          <div class="form-group">
+            <label class="text-xs text-muted">Idempotency Key (Prevents double payment on retry)</label>
+            <div class="flex-align-gap">
+              <input type="text" id="settle-idempotency-key" class="form-input form-input-sm font-mono" readonly>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="generateNewIdempotencyKey()">Regen</button>
+            </div>
+          </div>
+          <div id="settle-error" class="alert alert-danger hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('settlement-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Settlement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Ledger Audit & Double-Entry Invariant Proof -->
+  <div id="ledger-modal" class="modal-backdrop hidden">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3>Double-Entry Ledger Postings</h3>
+          <p class="text-muted text-sm" id="ledger-tx-title">Transaction Details</p>
+        </div>
+        <button class="modal-close" onclick="closeModal('ledger-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="audit-banner">
+          <div class="audit-icon">⚖️</div>
+          <div>
+            <strong>Zero-Sum Ledger Guarantee:</strong> Every financial transaction is balanced.
+            The sum of all credits and debits strictly equals ₹0.00 (down to the exact paisa).
+          </div>
+        </div>
+
+        <div class="table-responsive mt-3">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Entry ID</th>
+                <th>Account / User</th>
+                <th>Posting Type</th>
+                <th>Signed Impact</th>
+                <th>Paise</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-entries-tbody">
+              <!-- Rendered dynamically -->
+            </tbody>
+            <tfoot>
+              <tr class="ledger-total-row">
+                <td colspan="3" class="text-right"><strong>Net Sum Across All Postings:</strong></td>
+                <td id="ledger-net-sum" class="font-bold text-success">₹0.00</td>
+                <td id="ledger-net-paise" class="font-mono text-success">0 paise</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div id="ledger-reversal-info" class="mt-3 hidden">
+          <div class="alert alert-warning text-sm" id="ledger-reversal-text"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('ledger-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
