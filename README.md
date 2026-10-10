@@ -18,7 +18,10 @@
 ### 2. Immutable Double-Entry Ledger System
 - Every financial event (expense or settlement) writes an immutable record to the ledger.
 - **Double-Entry Invariant**:
-  $$\sum \text{amount\_paise} = 0 \quad \text{for every transaction}$$
+  $$
+\sum \text{amount\_paise} = 0
+\quad \text{for every transaction}
+$$
 - **Zero-History Mutation**:
   - Edits and deletions **never mutate or delete existing database rows**.
   - Deletions are executed by creating an immutable `REVERSAL` transaction with negated postings referencing `reversal_of_id`.
